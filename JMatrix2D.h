@@ -59,7 +59,7 @@ private:
 template<class T>
 JMatrix2D<T>::JMatrix2D(unsigned rows, unsigned cols, FORWARDMODE nm) :
 TotalRows(rows),
-Totalcols(cols),
+TotalCols(cols),
 CurIndex(0)
 {
 	MatrixValue = std::deque<T>(rows*cols,static_cast<T>(0));
@@ -103,7 +103,16 @@ const unsigned & JMatrix2D<T>::GetCurIndex() const
 template<class T>
 JMatrix2D<T> &  JMatrix2D<T>::operator++()
 {
-	
+	switch (CurForwardMode)
+	{
+	case RowPriority:
+		break;
+	case Proximity:
+		ToNextInProximityMode();
+		break;
+	default:
+		break;
+	}
 	return *this;
 }
 
@@ -125,7 +134,16 @@ void JMatrix2D<T>::ToNextInRowPriorityMode()
 template<class T>
 void JMatrix2D<T>::ToNextInProximityMode()
 {
-
+	if (CurIndex != -1)
+	{
+		int rowNum = CurIndex / TotalCols+1;
+		int colNum = CurIndex%TotalCols+1;
+		if (rowNum % 2)
+			colNum < TotalCols?CurIndex++:CurIndex += TotalCols;
+		else
+			colNum == 1 ? CurIndex += TotalCols : CurIndex--;
+		if (CurIndex / TotalCols + 1>TotalRows)CurIndex = -1;
+	}
 }
 
 template<class T>
