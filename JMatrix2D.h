@@ -27,10 +27,9 @@ public:
 
 	explicit JMatrix2D(unsigned, unsigned, FORWARDMODE nm = RowPriority);
 
-
 	//Getters...
-	T &					GetValue(unsigned, unsigned);									//获取指定行、列的值
-	T &					GetValue(unsigned);												//获取指定索引的值，从0开始计数
+	const T &			GetValue(unsigned, unsigned) const;				//获取指定行、列的值
+	const T &			GetValue(unsigned) const;						//获取指定索引的值，从0开始计数
 	const int &			GetCurIndex() const ;
 	int &				GetCurIndex();
 	int					GetForwardMode();
@@ -38,12 +37,11 @@ public:
 	//Setters...
 	void SetNextMode(FORWARDMODE);										//设置去向下一个点的模式
 	void SetCurIndex(int);												//设置当前索引值
-	void SetTurnMode(unsigned,unsigned srow = 1, unsigned scol = 1);	//设置本轮进行的形式，主要为起始行、列、长度等
+	void SetTurnMode(unsigned,unsigned srow = 1, unsigned scol = 1);	//设置本轮进行的形式，起始行、列、长度
 
 	//overload operators...
 	JMatrix2D<T> & operator ++();
 	JMatrix2D<T> & operator --();
-
 
 	//is serial..
 	bool isMatrixEnd();													//表示已经过了矩阵的最后一个元素
@@ -52,7 +50,8 @@ public:
 	bool isTurnLast();													//表示是否在本轮的最后一个点
 
 	//functional
-	void RestMatrixValue(T);											//重置中矩阵中所有的值
+	void RestMatrixValue(const T &);									//重置中矩阵中所有的值
+	bool ResizeMatrix(unsigned,unsigned, const T &);										//重置矩阵的大小，并将新矩阵的赋予初始值T
 
 private:
 
@@ -62,8 +61,8 @@ private:
 	unsigned StarCol;													//起始列
 	unsigned LengthFromStart;											//想要运行的长度
 	int		 CurIndex;													//保存当前位置（从0开始计数）
-	FORWARDMODE		CurForwardMode;											//保存从当前点往下点流转的模式
-	std::deque<T>	MatrixValue;									//表示存在矩阵中的值
+	FORWARDMODE		CurForwardMode;										//保存从当前点往下点流转的模式
+	std::deque<T>	MatrixValue;										//表示存在矩阵中的值
 
 	void ToNextInRowPriorityMode();										//按照RowPriority的模式进入到下一个索引点
 	void ToNextInProximityMode();										//按照proximity的模式去下一个索引点
@@ -185,7 +184,6 @@ void JMatrix::JMatrix2D<T>::ToNextInRowPriorityMode()
 	}
 }
 
-
 template<class T>
 void JMatrix::JMatrix2D<T>::ToNextInProximityMode()
 {
@@ -233,13 +231,26 @@ bool JMatrix::JMatrix2D<T>::isTurnLast()
 
 
 
-
-
 //functional...
 
 template<class T>
 void JMatrix::JMatrix2D<T>::RestMatrixValue(T t)
 {
+	MatrixValue.clear();
 	MatrixValue.assign(MatrixValue.size(), t);
 	CurIndex = 0;
+	StartRow = 1;
+	StartCol = 1;
+}
+
+template<class T>
+bool JMatrix::JMatrix2D<T>::ResizeMatrix(unsigned rows, unsigned cols,const T &)
+{
+	int i_Rows = static_cast<int>rows;
+	int i_Cols = static_cast<int>cols;
+	if (i_Rows <= 0 || i_Cols <= 0)return false;
+	TotalRows = i_Rows;
+	TotalCols = i_Cols;
+	RestMatrixValue(T);
+	return true;
 }
