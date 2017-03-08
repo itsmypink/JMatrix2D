@@ -5,10 +5,16 @@
 
 namespace JMatrix
 {
-
 	template<class T>	class JMatrix2D;
 	template<class T>	class JMatrix3D;
 
+
+	enum FORWARDMODE
+	{
+		RowPriority = 0x0001
+		, Proximity = 0x0002
+		//,Snake=0x0004
+	};
 }
 
 using namespace JMatrix;
@@ -17,13 +23,6 @@ template<class T>
 class JMatrix::JMatrix2D
 {
 public:
-
-	enum FORWARDMODE
-	{
-		RowPriority = 0x0001
-		,Proximity  =0x0002
-		,Snake=0x0004
-	};
 
 	explicit JMatrix2D(unsigned, unsigned, FORWARDMODE nm = RowPriority);
 
@@ -37,7 +36,8 @@ public:
 	//Setters...
 	void SetNextMode(FORWARDMODE);										//设置去向下一个点的模式
 	void SetCurIndex(int);												//设置当前索引值
-	void SetTurnMode(unsigned,unsigned srow = 1, unsigned scol = 1);	//设置本轮进行的形式，起始行、列、长度
+	bool SetTurnMode(unsigned length,unsigned srow, unsigned scol);	//设置本轮进行的形式，起始行、列、长度
+	bool SetTurnMode(unsigned length, unsigned sindex);								//设置本轮进行的形式，起始行、序号
 
 	//overload operators...
 	JMatrix2D<T> & operator ++();
@@ -50,9 +50,9 @@ public:
 	bool isTurnLast();													//表示是否在本轮的最后一个点
 
 	//functional
-	void RestMatrixValue(const T &);									//重置中矩阵中所有的值
-	bool ResizeMatrix(unsigned,unsigned, const T &);										//重置矩阵的大小，并将新矩阵的赋予初始值T
-
+	void ResetMatrixValue(const T &);									//重置中矩阵中所有的值
+	bool ResizeMatrix(unsigned,unsigned, const T &);					//重置矩阵的大小，并将新矩阵的赋予初始值T
+	
 private:
 
 	unsigned TotalRows;													//保存矩阵的行数
@@ -90,14 +90,14 @@ CurIndex(0)
 
 //getters...
 template<class T>
-T & JMatrix::JMatrix2D<T>::GetValue(unsigned row, unsigned col)
+const T & JMatrix::JMatrix2D<T>::GetValue(unsigned row, unsigned col) const
 {
 	return MatrixValue.at((row - 1)*TotalCols + col);
 }
 
 
 template<class T>
-T & JMatrix::JMatrix2D<T>::GetValue(unsigned index)//注意，矩阵的索引号是从0开始的
+const T & JMatrix::JMatrix2D<T>::GetValue(unsigned index) const//注意，矩阵的索引号是从0开始的
 {
 	return MatrixValue.at(index);
 }
@@ -137,18 +137,42 @@ void JMatrix::JMatrix2D<T>::SetCurIndex(int index)
 }
 
 template<class T>
-void JMatrix::JMatrix2D<T>::SetTurnMode(unsigned length, unsigned srow, unsigned scol)
+bool JMatrix::JMatrix2D<T>::SetTurnMode(unsigned length, unsigned srow, unsigned scol)
 {
 	if (length > TotalRows*TotalCols - (srow - 1)*TotalCols + scol + 1 || srow > TotalRows || scol > TotalCols || length < 0 || srow < 0 || scol < 0)
+	{
 		CurIndex = -1;
+		return false;
+	}
 	else
 	{
 		StartRow = srow;
 		StarCol = scol;
 		LengthFromStart = length;
 		CurIndex = (srow - 1)*TotalCols + scol + 1;
+		return true;
 	}
 }
+
+template<class T>
+bool JMatrix::JMatrix2D<T>::SetTurnMode(unsigned length, unsigned index)
+{
+	if (length > TotalRows*TotalCols - index || index > TotalRows*TotalCols - 1 || length <=0 || index < 0)
+	{
+		CurIndex = -1;
+		return false;
+	}
+	else
+	{
+		StartRow = index/TotalCols+1;
+		StarCol = index%TotalCols+1;
+		LengthFromStart = length;
+		CurIndex = index;
+		return true;
+	}
+}
+
+
 
 
 //overload...
@@ -159,6 +183,7 @@ JMatrix2D<T> &  JMatrix::JMatrix2D<T>::operator++()
 	switch (CurForwardMode)
 	{
 	case RowPriority:
+		ToNextInRowPriorityMode();
 		break;
 	case Proximity:
 		ToNextInProximityMode();
@@ -234,7 +259,7 @@ bool JMatrix::JMatrix2D<T>::isTurnLast()
 //functional...
 
 template<class T>
-void JMatrix::JMatrix2D<T>::RestMatrixValue(T t)
+void JMatrix::JMatrix2D<T>::ResetMatrixValue(const T& t)
 {
 	MatrixValue.clear();
 	MatrixValue.assign(MatrixValue.size(), t);
