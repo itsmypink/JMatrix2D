@@ -8,7 +8,6 @@ namespace JMatrix
 	template<class T>	class JMatrix2D;
 	template<class T>	class JMatrix3D;
 
-
 	enum FORWARDMODE
 	{
 		RowPriority = 0x0001
@@ -23,21 +22,25 @@ template<class T>
 class JMatrix::JMatrix2D
 {
 public:
-
-	explicit JMatrix2D(unsigned, unsigned, FORWARDMODE nm = RowPriority);
+	explicit JMatrix2D(unsigned rows=1, unsigned cols=1, FORWARDMODE nm = RowPriority);
 
 	//Getters...
 	const T &			GetValue(unsigned, unsigned) const;				//获取指定行、列的值
 	const T &			GetValue(unsigned) const;						//获取指定索引的值，从0开始计数
-	const int &			GetCurIndex() const ;
+	const int &			GetCurIndex() const;
 	int &				GetCurIndex();
 	int					GetForwardMode();
+	int					GetCurRow();
+	int					GetCurCol();
+	int					GetCountFromStart();
 
 	//Setters...
 	void SetNextMode(FORWARDMODE);										//设置去向下一个点的模式
 	void SetCurIndex(int);												//设置当前索引值
-	bool SetTurnMode(unsigned length,unsigned srow, unsigned scol);	//设置本轮进行的形式，起始行、列、长度
-	bool SetTurnMode(unsigned length, unsigned sindex);								//设置本轮进行的形式，起始行、序号
+	bool SetTurnPara(unsigned srow,unsigned scol, unsigned length);		//设置本轮进行的形式，起始行、列、长度
+	bool SetTurnPara(unsigned sindex, unsigned length);					//设置本轮进行的形式，起始行、序号
+	bool SetTurnPara(unsigned srow, unsigned scol, unsigned endrow, unsigned endcol);			//设置本轮进行的形式，起始行、列、终止行、列
+
 
 	//overload operators...
 	JMatrix2D<T> & operator ++();
@@ -58,7 +61,7 @@ private:
 	unsigned TotalRows;													//保存矩阵的行数
 	unsigned TotalCols;													//保存矩阵的列数
 	unsigned StartRow;													//起始行
-	unsigned StarCol;													//起始列
+	unsigned StartCol;													//起始列
 	unsigned LengthFromStart;											//想要运行的长度
 	int		 CurIndex;													//保存当前位置（从0开始计数）
 	FORWARDMODE		CurForwardMode;										//保存从当前点往下点流转的模式
@@ -70,7 +73,7 @@ private:
 
 };
 
-#endif
+
 
 
 
@@ -79,8 +82,8 @@ JMatrix::JMatrix2D<T>::JMatrix2D(unsigned rows, unsigned cols, FORWARDMODE nm) :
 TotalRows(rows),
 TotalCols(cols),
 StartRow(1),
-StarCol(1),
-LengthFromStart(1),
+StartCol(1),
+LengthFromStart(0),
 CurIndex(0)
 {
 	MatrixValue = std::deque<T>(rows*cols,static_cast<T>(0));
@@ -119,7 +122,23 @@ int &	JMatrix::JMatrix2D<T>::GetCurIndex()
 {
 	return CurIndex;
 }
+template<class T>
+int		JMatrix::JMatrix2D<T>::GetCurRow()
+{
+	return CurIndex / TotalCols + 1;
+}
 
+template<class T>
+int		JMatrix::JMatrix2D<T>::GetCurCol()
+{
+	return CurIndex%TotalCols + 1;
+}
+
+template<class T>
+int		JMatrix::JMatrix2D<T>::GetCountFromStart()
+{
+	return CurIndex - (StartRow - 1)*TotalCols - StartCol + 1;
+}
 
 
 //Setters....
@@ -137,41 +156,55 @@ void JMatrix::JMatrix2D<T>::SetCurIndex(int index)
 }
 
 template<class T>
-bool JMatrix::JMatrix2D<T>::SetTurnMode(unsigned length, unsigned srow, unsigned scol)
+bool JMatrix::JMatrix2D<T>::SetTurnPara(unsigned srow, unsigned scol, unsigned length)
 {
-	if (length > TotalRows*TotalCols - (srow - 1)*TotalCols + scol + 1 || srow > TotalRows || scol > TotalCols || length < 0 || srow < 0 || scol < 0)
+	if (srow > TotalRows || scol > TotalCols || length < 0 || srow < 0 || scol < 0)
 	{
 		CurIndex = -1;
 		return false;
 	}
-	else
-	{
-		StartRow = srow;
-		StarCol = scol;
-		LengthFromStart = length;
-		CurIndex = (srow - 1)*TotalCols + scol + 1;
-		return true;
-	}
+	if (length > TotalRows*TotalCols - (srow - 1)*TotalCols - scol)length = TotalRows*TotalCols - (srow - 1)*TotalCols - scol;
+
+	StartRow = srow;
+	StartCol = scol;
+	LengthFromStart = length;
+	CurIndex = (srow - 1)*TotalCols + scol - 1;
+	return true;
 }
 
 template<class T>
-bool JMatrix::JMatrix2D<T>::SetTurnMode(unsigned length, unsigned index)
+bool JMatrix::JMatrix2D<T>::SetTurnPara(unsigned sindex, unsigned length)
 {
-	if (length > TotalRows*TotalCols - index || index > TotalRows*TotalCols - 1 || length <=0 || index < 0)
+	if (index > TotalRows*TotalCols - 1 || length <=0 || index < 0)
 	{
 		CurIndex = -1;
 		return false;
 	}
-	else
-	{
-		StartRow = index/TotalCols+1;
-		StarCol = index%TotalCols+1;
-		LengthFromStart = length;
-		CurIndex = index;
-		return true;
-	}
+	if (length > TotalRows*TotalCols - 1 - index)length = TotalRows*TotalCols - 1 - index;
+
+	StartRow = index/TotalCols+1;
+	StartCol = index%TotalCols+1;
+	LengthFromStart = length;
+	CurIndex = index;
+	return true;
 }
 
+template<class T>
+bool JMatrix::JMatrix2D<T>::SetTurnPara(unsigned srow, unsigned scol, unsigned endrow, unsigned endcol)
+{
+	if ((srow >= 1 && srow <= TotalRows) && (scol >= 1 && scol <= TotalCols)
+		&& (endrow >= 1 && endrow <= TotalRows) && (endcol >= 1 && endcol <= TotalCols)
+		&& ((srow*TotalCols + TotalCols) <= (endrow*TotalCols + endcol)))
+	{
+		StartRow = srow;
+		StartCol = scol;
+		LengthFromStart = (endrow*TotalCols + endcol) - (srow*TotalCols + scol);
+		CurIndex = (srow-1)*TotalCols + scol - 1;
+		return true;
+	}
+	else
+		return false;
+}
 
 
 
@@ -243,7 +276,7 @@ bool JMatrix::JMatrix2D<T>::isMatrixLast()
 template<class T>
 bool JMatrix::JMatrix2D<T>::isTurnEnd()
 {
-	if (CurIndex == -1 || CurIndex > (StartRow - 1)*TotalCols + StarCol + LengthFromStart - 2)
+	if (CurIndex == -1 || CurIndex > (StartRow - 1)*TotalCols + StartCol + LengthFromStart - 2)
 		return true;
 	return false;
 }
@@ -251,7 +284,7 @@ bool JMatrix::JMatrix2D<T>::isTurnEnd()
 template<class T>
 bool JMatrix::JMatrix2D<T>::isTurnLast()
 {
-	return CurIndex == (StartRow - 1)*TotalCols + StarCol + LengthFromStart - 2;
+	return CurIndex == (StartRow - 1)*TotalCols + StartCol + LengthFromStart - 1;
 }
 
 
@@ -269,13 +302,16 @@ void JMatrix::JMatrix2D<T>::ResetMatrixValue(const T& t)
 }
 
 template<class T>
-bool JMatrix::JMatrix2D<T>::ResizeMatrix(unsigned rows, unsigned cols,const T &)
+bool JMatrix::JMatrix2D<T>::ResizeMatrix(unsigned rows, unsigned cols,const T & value)
 {
-	int i_Rows = static_cast<int>rows;
-	int i_Cols = static_cast<int>cols;
+	int i_Rows = static_cast<int>(rows);
+	int i_Cols = static_cast<int>(cols);
 	if (i_Rows <= 0 || i_Cols <= 0)return false;
 	TotalRows = i_Rows;
 	TotalCols = i_Cols;
-	RestMatrixValue(T);
+	MatrixValue.resize(rows*cols);
+	ResetMatrixValue(value);
 	return true;
 }
+
+#endif
